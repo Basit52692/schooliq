@@ -55,7 +55,7 @@ export default function LoginPage() {
         {/* LOGIN CARD */}
         <div className="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
           <div className="mb-6">
-            <h2 className="text-2xl font-bold">Welcome back</h2>
+            <h2 className="text-2xl text-black font-bold">Welcome back</h2>
 
             <p className="mt-1 text-sm text-slate-500">
               Sign in to your school dashboard.
@@ -65,7 +65,7 @@ export default function LoginPage() {
           <form onSubmit={handleLogin} className="space-y-5">
             {/* EMAIL */}
             <div>
-              <label className="mb-2 block text-sm font-medium">
+              <label className="mb-2 text-slate-500 block text-sm font-medium">
                 Email Address
               </label>
 
@@ -78,14 +78,14 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="admin@school.com"
                   required
-                  className="w-full bg-transparent text-sm outline-none"
+                  className="w-full text-slate-500 bg-transparent text-sm outline-none"
                 />
               </div>
             </div>
 
             {/* PASSWORD */}
             <div>
-              <label className="mb-2 block text-sm font-medium">
+              <label className="mb-2 text-slate-500 block text-sm font-medium">
                 Password
               </label>
 
@@ -98,7 +98,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
                   required
-                  className="w-full bg-transparent text-sm outline-none"
+                  className="w-full text-slate-500 bg-transparent text-sm outline-none"
                 />
               </div>
             </div>

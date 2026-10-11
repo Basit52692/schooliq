@@ -13,8 +13,10 @@ import {
   ArrowLeft,
   CalendarDays,
   GraduationCap,
+  KeyRound,
   Loader2,
   Save,
+  ScanFace,
   ShieldCheck,
   UserRound,
   Users,
@@ -99,6 +101,9 @@ export default function NewStudentPage() {
     useState("");
 
   const [address, setAddress] =
+    useState("");
+
+  const [studentEmail, setStudentEmail] =
     useState("");
 
   const [status, setStatus] =
@@ -499,6 +504,38 @@ export default function NewStudentPage() {
 
       setSaving(false);
       return;
+    }
+
+    // Auto-create student portal account if email is provided
+    if (studentEmail.trim()) {
+      try {
+        const accRes = await fetch("/api/students/account", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            student_id: data.id,
+            email: studentEmail.trim().toLowerCase(),
+            password: "12345678",
+          }),
+        });
+
+        const accData = await accRes.json().catch(() => ({}));
+
+        if (!accRes.ok || accData.error) {
+          setError(
+            `Student record saved, but portal login account failed: ${accData.error || "Check database permissions."}`
+          );
+          setSaving(false);
+          return;
+        }
+      } catch (e: unknown) {
+        console.error("Auto-create student account error:", e);
+        setError(
+          `Student record saved, but network error occurred while creating portal account: ${e instanceof Error ? e.message : "Unknown error"}`
+        );
+        setSaving(false);
+        return;
+      }
     }
 
     router.push(
@@ -986,6 +1023,42 @@ export default function NewStudentPage() {
                     className="input"
                   />
                 </Field>
+              </div>
+            </FormCard>
+
+            {/* ==================================
+                STUDENT PORTAL LOGIN ACCOUNT
+            ================================== */}
+
+            <FormCard
+              title="Student Portal Login Credentials"
+              description="Create a student login account for attendance and portal access."
+              icon={
+                <ScanFace
+                  size={20}
+                />
+              }
+            >
+              <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2">
+                <Field label="Student Portal Email">
+                  <input
+                    type="email"
+                    value={studentEmail}
+                    onChange={(e) => setStudentEmail(e.target.value)}
+                    placeholder="student@school.com"
+                    className="input"
+                  />
+                </Field>
+
+                <div className="flex flex-col justify-center rounded-xl border border-blue-100 bg-blue-50/70 p-4 text-xs text-blue-900">
+                  <div className="flex items-center gap-2 font-bold text-blue-950">
+                    <KeyRound size={16} className="text-blue-600" />
+                    Default Password: <span className="font-mono text-sm font-extrabold text-blue-600">12345678</span>
+                  </div>
+                  <p className="mt-1 text-[11px] leading-relaxed text-blue-700">
+                    The student will use this email and default password to sign in. They will be prompted for one-time facial biometric setup and can update their password anytime.
+                  </p>
+                </div>
               </div>
             </FormCard>
 

@@ -44,6 +44,16 @@ export async function proxy(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
+  // Allow static test page without mandatory auth
+  if (pathname === "/test-face" || pathname.startsWith("/test-face/")) {
+    return supabaseResponse;
+  }
+
+  // Allow API routes to be handled by route handlers
+  if (pathname.startsWith("/api/")) {
+    return supabaseResponse;
+  }
+
   // ==============================
   // NOT LOGGED IN
   // ==============================
@@ -51,13 +61,56 @@ export async function proxy(request: NextRequest) {
   if (!user) {
     if (pathname !== "/login") {
       const url = request.nextUrl.clone();
-
       url.pathname = "/login";
-
       return NextResponse.redirect(url);
     }
 
     return supabaseResponse;
+  }
+
+  // ==============================
+  // GET USER ROLE
+  // ==============================
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, status")
+    .eq("id", user.id)
+    .single();
+
+  const role = profile?.role;
+  const status = profile?.status;
+
+  // Inactive users cannot access the system
+  if (
+    role !== "school_admin" &&
+    role !== "super_admin" &&
+    status !== "Active"
+  ) {
+    await supabase.auth.signOut();
+
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+
+    const redirectResponse = NextResponse.redirect(url);
+
+    supabaseResponse.cookies
+      .getAll()
+      .forEach((cookie) => {
+        redirectResponse.cookies.set(cookie);
+      });
+
+    return redirectResponse;
+  }
+
+  // If profile/role is missing
+  if (!role) {
+    await supabase.auth.signOut();
+
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+
+    return NextResponse.redirect(url);
   }
 
   // ==============================
@@ -66,59 +119,41 @@ export async function proxy(request: NextRequest) {
 
   if (pathname === "/login") {
     const url = request.nextUrl.clone();
-
-    url.pathname = "/";
-
+    url.pathname = role === "student" ? "/portal" : "/";
     return NextResponse.redirect(url);
   }
 
   // ==============================
-  // GET USER ROLE
+  // STUDENT ROLE ACCESS RULES
   // ==============================
 
-  const { data: profile } = await supabase
-  .from("profiles")
-  .select("role, status")
-  .eq("id", user.id)
-  .single();
+  if (role === "student") {
+    if (pathname === "/portal" || pathname.startsWith("/portal/")) {
+      return supabaseResponse;
+    }
 
-const role = profile?.role;
-const status = profile?.status;
-// Inactive staff cannot access the system
-if (
-  role !== "school_admin" &&
-  role !== "super_admin" &&
-  status !== "Active"
-) {
-  await supabase.auth.signOut();
-
-  const url = request.nextUrl.clone();
-  url.pathname = "/login";
-
-  const redirectResponse = NextResponse.redirect(url);
-
-  supabaseResponse.cookies
-    .getAll()
-    .forEach((cookie) => {
-      redirectResponse.cookies.set(cookie);
-    });
-
-  return redirectResponse;
-}
-
-  // If profile/role is missing
-  if (!role) {
-    await supabase.auth.signOut();
-
+    // Students cannot access admin/staff dashboard routes
     const url = request.nextUrl.clone();
-
-    url.pathname = "/login";
-
+    url.pathname = "/portal";
     return NextResponse.redirect(url);
   }
 
   // ==============================
-  // ROLE ACCESS RULES
+  // NON-STUDENT ACCESS TO PORTAL
+  // ==============================
+
+  if (
+    (pathname === "/portal" || pathname.startsWith("/portal/")) &&
+    role !== "school_admin" &&
+    role !== "super_admin"
+  ) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/";
+    return NextResponse.redirect(url);
+  }
+
+  // ==============================
+  // ROLE ACCESS RULES (STAFF)
   // ==============================
 
   const adminOnlyRoutes = [
@@ -126,19 +161,19 @@ if (
   ];
 
   const teacherBlockedRoutes = [
-  "/fees",
-  "/reports",
-  "/staff",
-  "/settings",
-];
+    "/fees",
+    "/reports",
+    "/staff",
+    "/settings",
+  ];
 
   const accountantBlockedRoutes = [
-  "/students",
-  "/classes",
-  "/attendance",
-  "/staff",
-  "/settings",
-];
+    "/students",
+    "/classes",
+    "/attendance",
+    "/staff",
+    "/settings",
+  ];
 
   // SCHOOL ADMIN + SUPER ADMIN
   if (
@@ -151,16 +186,17 @@ if (
   // TEACHER
   if (role === "teacher") {
     // Teacher cannot create or edit students
-const teacherStudentWriteRoute =
-  pathname === "/students/new" ||
-  /^\/students\/[^/]+\/edit$/.test(pathname);
+    const teacherStudentWriteRoute =
+      pathname === "/students/new" ||
+      /^\/students\/[^/]+\/edit$/.test(pathname);
 
-if (teacherStudentWriteRoute) {
-  const url = request.nextUrl.clone();
-  url.pathname = "/";
+    if (teacherStudentWriteRoute) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/";
 
-  return NextResponse.redirect(url);
-}
+      return NextResponse.redirect(url);
+    }
+
     const blocked = teacherBlockedRoutes.some(
       (route) =>
         pathname === route ||
@@ -169,9 +205,7 @@ if (teacherStudentWriteRoute) {
 
     if (blocked) {
       const url = request.nextUrl.clone();
-
       url.pathname = "/";
-
       return NextResponse.redirect(url);
     }
 
@@ -188,9 +222,7 @@ if (teacherStudentWriteRoute) {
 
     if (blocked) {
       const url = request.nextUrl.clone();
-
       url.pathname = "/";
-
       return NextResponse.redirect(url);
     }
 
@@ -199,14 +231,12 @@ if (teacherStudentWriteRoute) {
 
   // Unknown role → safest option
   const url = request.nextUrl.clone();
-
   url.pathname = "/";
-
   return NextResponse.redirect(url);
 }
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|models/.*|.*\\.(?:svg|png|jpg|jpeg|gif|webp|bin|json)$).*)",
   ],
 };
