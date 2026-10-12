@@ -385,7 +385,10 @@ export default function NewStudentPage() {
         (item) =>
           item.id === classId
       );
-
+    if (!studentEmail.trim()) {
+  setError("Student Portal Email is required.");
+  return;
+}
     const selectedSection =
       sections.find(
         (item) =>
@@ -1040,7 +1043,7 @@ export default function NewStudentPage() {
               }
             >
               <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2">
-                <Field label="Student Portal Email">
+                <Field label="Student Portal Email" required>
                   <input
                     type="email"
                     value={studentEmail}

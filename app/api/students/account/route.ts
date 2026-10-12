@@ -56,7 +56,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const allowedRoles = ["school_admin", "super_admin", "teacher"];
+    const allowedRoles = ["school_admin", "super_admin"];
     if (!allowedRoles.includes(callerProfile.role)) {
       return NextResponse.json(
         { error: "You are not authorized to create student accounts." },
@@ -119,6 +119,7 @@ export async function POST(request: Request) {
     // 5. Create Auth Account
     let newUserId: string | null = null;
     let adminClient: ReturnType<typeof createClient> | null = null;
+    let createdNewAuthUser = false;
     const secretKey = process.env.SUPABASE_SECRET_KEY;
 
     if (secretKey) {
@@ -180,8 +181,9 @@ export async function POST(request: Request) {
           );
         }
       } else {
-        newUserId = created.user.id;
-      }
+  newUserId = created.user.id;
+  createdNewAuthUser = true;
+}
     } else {
       // Method B: Public sign-up client (when secret key not configured in .env)
       const standaloneClient = createClient(
@@ -246,9 +248,9 @@ export async function POST(request: Request) {
       console.error("Profile insert error:", insertProfileError);
 
       // Rollback auth user if profile insertion failed
-      if (adminClient && newUserId) {
-        await adminClient.auth.admin.deleteUser(newUserId).catch(() => {});
-      }
+      if (adminClient && newUserId && createdNewAuthUser) {
+  await adminClient.auth.admin.deleteUser(newUserId).catch(() => {});
+}
 
       return NextResponse.json(
         {
